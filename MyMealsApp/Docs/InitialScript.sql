@@ -9,6 +9,15 @@ CREATE TABLE dbo.Category
     CreatedDate DATE 
 );
 
+CREATE TABLE dbo.Difficulty
+(
+    ID INTEGER IDENTITY(1,1) PRIMARY KEY,
+    [Name] VARCHAR(500),    
+    [Description]  VARCHAR(5000),
+    [Image] VARCHAR(45),
+    [CreatedDate] DATE
+);
+
 CREATE TABLE dbo.Recipe
 (  
     ID INTEGER IDENTITY(1,1) PRIMARY KEY,
@@ -21,7 +30,9 @@ CREATE TABLE dbo.Recipe
 	Summary VARCHAR(1000),
 	CreatedDate DATE,
 	CONSTRAINT FK_Category FOREIGN KEY (CategoryID)
-    REFERENCES Category(ID)
+    REFERENCES Category(ID),
+    CONSTRAINT FK_Difficulty FOREIGN KEY (DifficultyID)
+    REFERENCES Difficulty(ID)
 );
 
 CREATE TABLE dbo.Measure (
@@ -35,10 +46,10 @@ CREATE TABLE dbo.Ingredient
 (  
     ID INTEGER IDENTITY(1,1) PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
-	UnitShort VARCHAR(20) NOT NULL,
-	UnitLong VARCHAR (50) NOT NULL,
-	Amount DECIMAL,
-	created_date DATE,
+	--UnitShort VARCHAR(20) NOT NULL,
+	--UnitLong VARCHAR (50) NOT NULL,
+	--Amount DECIMAL,
+	createdDate DATE,
 );
 
 CREATE TABLE dbo.Recipe_Measure_Ingredient (
