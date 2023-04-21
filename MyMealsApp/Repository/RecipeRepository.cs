@@ -3,8 +3,11 @@ using Microsoft.Extensions.Hosting;
 using MyMealsApp.Context;
 using MyMealsApp.Contract;
 using MyMealsApp.Models;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Net.Mail;
+using System.Security.Cryptography;
 
 namespace MyMealsApp.Repository
 {
@@ -45,18 +48,47 @@ namespace MyMealsApp.Repository
         
         public async Task<Recipe> GetFullRecipe(int id)
         {
-            var query = @"SELECT * FROM recipe 
-                            WHERE id = @Id";
+            var query = @"SELECT * FROM recipe r WHERE id = @Id";
+            var recipeDict = new Dictionary<int, Recipe>();
             using (var connection = _context.CreateConnection())
             {
-                var recipe = await connection.QuerySingleOrDefaultAsync<Recipe>(query, new { id });
+                var recipe = await connection.QueryFirstAsync<Recipe>(query, new { id });
 
                 recipe.Preparations.AddRange(await GetPreparation(id));
                 recipe.Ingredients.AddRange(await GetIngredients(id));
+                recipe.Category =  await GetCategory(id);
+                recipe.Difficulty = await GetDifficulty(id);
 
                 return recipe;
             }
         }
+
+        private async Task<Category> GetCategory(int recipeId)
+        {
+            var query = @"SELECT c.* FROM recipe r 
+                        INNER JOIN category c ON r.CategoryId = c.ID 
+                        WHERE r.Id = @recipeId ";
+            using (var connection = _context.CreateConnection())
+            {
+                var category = await connection.QueryFirstAsync<Category>(query, new { recipeId });
+
+                return category;
+            }            
+        }
+
+        private async Task<Difficulty> GetDifficulty(int recipeId)
+        {
+            var query = @"SELECT d.* FROM recipe r 
+                        INNER JOIN difficulty d ON r.difficultyId = d.ID 
+                        WHERE r.Id = @recipeId ";
+            using (var connection = _context.CreateConnection())
+            {
+                var difficulty = await connection.QueryFirstAsync<Difficulty>(query, new { recipeId });
+
+                return difficulty;
+            }
+        }
+
         private async Task<List<Preparation>> GetPreparation(int recipeId)
         {
             var query = "SELECT * FROM preparation WHERE recipeId = @recipeId";
