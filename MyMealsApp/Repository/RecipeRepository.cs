@@ -15,11 +15,29 @@ namespace MyMealsApp.Repository
 
         public async Task<IEnumerable<Recipe>> GetRecipes(int quantity)
         {
-            var query = "SELECT TOP (@quantity) id, name, difficulty, categoryID, readyInMinutes FROM recipe";
-
+            var query = @"SELECT TOP (@quantity) *	                    
+                        FROM recipe r
+                        INNER JOIN category c ON r.categoryID = c.ID
+                        INNER JOIN difficulty d ON r.difficultyID = d.ID";
+            var recipeDict = new Dictionary<int, Recipe>();
             using (var connection = _context.CreateConnection())
             {
-                var recipes = await connection.QueryAsync<Recipe>(query, new { quantity });
+                var recipes = await connection.QueryAsync<Recipe, Category, Difficulty, Recipe>(
+                    query, (recipe, category, difficult) =>
+                    { 
+                        if(!recipeDict.TryGetValue(recipe.Id, out var currentRecipe))
+                        {
+                            currentRecipe = recipe;
+                            currentRecipe.Category = new Category();
+                            currentRecipe.Difficulty = new Difficulty();
+                            recipeDict.Add(currentRecipe.Id, currentRecipe);
+                        }
+                        currentRecipe.Category = category;
+                        currentRecipe.Difficulty = difficult;
+
+                        return currentRecipe;
+                    }, 
+                    new { quantity });
 
                 return recipes.ToList();
             }
@@ -27,8 +45,8 @@ namespace MyMealsApp.Repository
         
         public async Task<Recipe> GetFullRecipe(int id)
         {
-            var query = "SELECT * FROM recipe WHERE id = @Id";
-
+            var query = @"SELECT * FROM recipe 
+                            WHERE id = @Id";
             using (var connection = _context.CreateConnection())
             {
                 var recipe = await connection.QuerySingleOrDefaultAsync<Recipe>(query, new { id });
@@ -53,39 +71,28 @@ namespace MyMealsApp.Repository
 
         private async Task<List<Ingredient>> GetIngredients(int recipeId)
         {
-            var query = @"SELECT * FROM recipe_measure_ingredient rmi
-                            INNER JOIN ingredient i ON rmi.ingredientId = i.id 
-                            INNER JOIN measure m ON rmi.measureId = m.id 
-                            WHERE rmi.RecipeID = @recipeId";
-            
+            var query = @"SELECT * FROM ingredient i
+                          INNER JOIN recipe r ON r.Id = i.recipeId 
+                          WHERE r.Id = @recipeId";
+
             using (var connection = _context.CreateConnection())
             {
-                //comeca aqui
-                var ingredientDict = new Dictionary<int, Ingredient>();
+                var steps = await connection.QueryAsync<Ingredient>(query, new { recipeId });
 
-                var ingredients = await connection.QueryAsync<Ingredient, Measure, Ingredient>(query,(ingredient, measure) => { 
-                    if(!ingredientDict.TryGetValue(ingredient.Id, out var currentIngredient))
-                    {
-                        currentIngredient = ingredient;
-                        ingredientDict.Add(currentIngredient.Id, currentIngredient);
-                    }
-                    currentIngredient.Measure = measure;
-                    return currentIngredient;
-
-                }, new { recipeId });
-
-                return ingredients.ToList();
+                return steps.ToList();
             }
         }
+                
 
         //todo: tem que refazer isso aqui
         public async Task<List<Recipe>> GetRecipePreparationMultipleResults(int id)
         {
-            var query = "SELECT rmi.recipeid, rmi.ingredientId, rmi.measureId , r.*, i.*, m.* " +
-                        "FROM  recipe_measure_ingredient rmi  " +
+            throw new Exception("This feature is currently under development and will be available soon.");
+
+            var query = "SELECT rmi.recipeid, rmi.ingredientId, r.*, i.* " +
+                        "FROM  recipe_ingredient rmi  " +
                         "INNER JOIN recipe r ON r.id = rmi.recipeid " +
                         "INNER JOIN ingredient i ON rmi.ingredientId = i.id " +
-                        "INNER JOIN measure m ON rmi.measureId = m.id " +
                         "WHERE r.id = @Id";
 
             //using (var connection = _context.CreateConnection())
@@ -110,7 +117,7 @@ namespace MyMealsApp.Repository
             {
                 var recipeDict = new Dictionary<int, Recipe>();
                 var ingredientDict = new Dictionary<int, Ingredient>();
-                var measureDict = new Dictionary<int, Measure>();
+               // var measureDict = new Dictionary<int, Measure>();
 
                 var recipes = await connection.QueryAsync<Recipe, Ingredient, Measure, Recipe>(
                     query, (recipe, ingredient, measure) =>
@@ -125,22 +132,22 @@ namespace MyMealsApp.Repository
                         if (!ingredientDict.TryGetValue(ingredient.Id, out var currentIngredient))
                         {
                             currentIngredient = ingredient;
-                            currentIngredient.Measure = new Measure();
+                            //currentIngredient.Measure = new Measure();
                             ingredientDict.Add(currentIngredient.Id, currentIngredient);
                         }
 
-                        if (!measureDict.TryGetValue(measure.Id, out var currentMeasure))
-                        {
-                            currentMeasure = measure;
-                            measureDict.Add(currentMeasure.Id, currentMeasure);
-                        }
-                        currentIngredient.Measure = currentMeasure;
+                        //if (!measureDict.TryGetValue(measure.Id, out var currentMeasure))
+                        //{
+                        //    currentMeasure = measure;
+                        //    measureDict.Add(currentMeasure.Id, currentMeasure);
+                        //}
+                        //currentIngredient.Measure = currentMeasure;
                         currentRecipe.Ingredients.Add(currentIngredient);
 
                         return currentRecipe;
                     },
                     new { id },
-                    splitOn: "name, amount");
+                    splitOn: "ingredientId");
 
                 return recipes.Distinct().ToList();
             }
