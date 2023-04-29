@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using MyMealsApp.Context;
 using MyMealsApp.Contract;
@@ -14,7 +15,13 @@ namespace MyMealsApp.Repository
     public class RecipeRepository : IRecipeRepository
     {
         private readonly DapperContext _context;
-        public RecipeRepository(DapperContext context) => _context = context;       
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public RecipeRepository(DapperContext context, IHttpContextAccessor httpContextAccessor)
+        {
+            _context = context;
+            _httpContextAccessor = httpContextAccessor;
+        }
 
         public async Task<IEnumerable<Recipe>> GetRecipes(int quantity)
         {
@@ -26,9 +33,12 @@ namespace MyMealsApp.Repository
             using (var connection = _context.CreateConnection())
             {
                 var recipes = await connection.QueryAsync<Recipe, Category, Difficulty, Recipe>(
-                    query, (recipe, category, difficult) =>
-                    { 
-                        if(!recipeDict.TryGetValue(recipe.Id, out var currentRecipe))
+                    query, (recipe, category, difficult) =>                        
+                    {
+                        var img = GetHost() + recipe.Image;
+                        recipe.Image = img;
+
+                        if (!recipeDict.TryGetValue(recipe.Id, out var currentRecipe))
                         {
                             currentRecipe = recipe;
                             currentRecipe.Category = new Category();
@@ -54,6 +64,9 @@ namespace MyMealsApp.Repository
             {
                 var recipe = await connection.QueryFirstAsync<Recipe>(query, new { id });
 
+                var img = GetHost() + recipe.Image;
+                recipe.Image = img;
+
                 recipe.Preparations.AddRange(await GetPreparation(id));
                 recipe.Ingredients.AddRange(await GetIngredients(id));
                 recipe.Category =  await GetCategory(id);
@@ -61,6 +74,15 @@ namespace MyMealsApp.Repository
 
                 return recipe;
             }
+        }
+
+        //todo: check the best way to create this host and apply this method
+        private string GetHost()
+        {            
+            var host = _httpContextAccessor.HttpContext?.Request.Host;
+            string imageHost = "https://" + host + "/images/";
+
+            return imageHost; 
         }
 
         private async Task<Category> GetCategory(int recipeId)
