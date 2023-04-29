@@ -1,4 +1,4 @@
-use MyMeals1;
+use MyMeals;
 
 CREATE TABLE dbo.Category
 (
