@@ -4,6 +4,7 @@ CREATE TABLE dbo.Category
 (
 	ID INTEGER IDENTITY(1,1) PRIMARY KEY,
 	[Name] varchar(100) NOT NULL,
+	[Image] varchar(500),
     CreatedDate DATE 
 );
 

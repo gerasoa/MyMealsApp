@@ -12,9 +12,9 @@ namespace MyMealsApp.Controllers
         public RecipesController(IRecipeRepository recipeRepository) => _recipeRepository = recipeRepository;
 
         [HttpGet]
-        public async Task<IActionResult> GetCompanies(int quantity)
+        public async Task<IActionResult> GetCompanies(int quantity, string? category)
         {
-            var recipes = await _recipeRepository.GetRecipes(quantity);
+            var recipes = await _recipeRepository.GetRecipes(quantity, category);
 
             return Ok(recipes);
         }
@@ -25,6 +25,14 @@ namespace MyMealsApp.Controllers
             var recipes = await _recipeRepository.GetFullRecipe(id);
 
             return Ok(recipes);
+        }
+
+        [HttpGet("Categories")]
+        public async Task<IActionResult> GetCategories()
+        {
+            var categories = await _recipeRepository.GetCategories();
+
+            return Ok(categories);
         }
 
         [HttpGet("{id}/MultipleResult")]

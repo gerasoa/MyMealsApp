@@ -23,12 +23,18 @@ namespace MyMealsApp.Repository
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task<IEnumerable<Recipe>> GetRecipes(int quantity)
+        public async Task<IEnumerable<Recipe>> GetRecipes(int quantity, string? category)
         {
             var query = @"SELECT TOP (@quantity) *	                    
                         FROM recipe r
                         INNER JOIN category c ON r.categoryID = c.ID
                         INNER JOIN difficulty d ON r.difficultyID = d.ID";
+
+            if(category != null)
+            {
+                query = query + " WHERE c.name = @category";
+            }
+
             var recipeDict = new Dictionary<int, Recipe>();
             using (var connection = _context.CreateConnection())
             {
@@ -50,7 +56,7 @@ namespace MyMealsApp.Repository
 
                         return currentRecipe;
                     }, 
-                    new { quantity });
+                    new { quantity, category });
 
                 return recipes.ToList();
             }
@@ -73,6 +79,21 @@ namespace MyMealsApp.Repository
                 recipe.Difficulty = await GetDifficulty(id);
 
                 return recipe;
+            }
+        }
+        public async Task<IEnumerable<Category>> GetCategories()
+        {
+            var query = @"SELECT * FROM category";
+            using (var connection = _context.CreateConnection())
+            {
+                var categories = await connection.QueryAsync<Category>(query);
+
+                foreach(var category in categories)
+                {
+                    category.Image = GetHost() + "category/" + category.Name.Replace(" ", "") + ".webp";
+                }
+
+                return categories;
             }
         }
 
@@ -125,7 +146,7 @@ namespace MyMealsApp.Repository
 
         private async Task<List<Ingredient>> GetIngredients(int recipeId)
         {
-            var query = @"SELECT * FROM ingredient i
+            var query = @"SELECT i.* FROM ingredient i
                           INNER JOIN recipe r ON r.Id = i.recipeId 
                           WHERE r.Id = @recipeId";
 
